@@ -12,7 +12,7 @@ export default function App() {
     return <LoginScreen onLogin={setCurrentUser} />;
   }
 
-  if (currentUser.role === "admin") {
+  if (currentUser.role === "admin" || currentUser.role === "administrador") {
     return (
       <AdminPanel
         user={currentUser}

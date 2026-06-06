@@ -1,21 +1,60 @@
 import { useState } from "react";
-import { Ticket, Mail, Lock, AlertCircle, ShieldCheck, Sun, Moon } from "lucide-react";
+import { Ticket, Mail, Lock, AlertCircle, ShieldCheck, Sun, Moon, Loader2 } from "lucide-react";
+import { supabase } from "../../lib/supabase";
 import { useDarkMode } from "../../hooks/useDarkMode";
-import { USER_CREDENTIALS } from "../../data/credentials";
+import { getInitials } from "../../utils/ticketUtils";
 
 export function LoginScreen({ onLogin }) {
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
   const [error,    setError]    = useState("");
+  const [loading,  setLoading]  = useState(false);
   const [dark, setDark] = useDarkMode();
 
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault();
     setError("");
-    if (!password) { setError("Ingresa tu contraseña."); return; }
-    const cred = USER_CREDENTIALS[email.toLowerCase().trim()];
-    if (!cred) { setError("Correo no autorizado o no registrado."); return; }
-    onLogin({ ...cred, email: email.toLowerCase().trim() });
+    if (!email.trim())    { setError("Ingresa tu correo.");    return; }
+    if (!password)        { setError("Ingresa tu contraseña."); return; }
+
+    setLoading(true);
+    try {
+      const { data: user, error: dbErr } = await supabase
+        .from("Usuarios")
+        .select("id, Usuario, Correo, Rol, Contraseña")
+        .eq("Correo", email.toLowerCase().trim())
+        .maybeSingle();
+
+      if (dbErr) throw dbErr;
+
+      if (!user) {
+        setError("Correo no registrado.");
+        return;
+      }
+      if (user.Contraseña !== password) {
+        setError("Contraseña incorrecta.");
+        return;
+      }
+
+      const role = user.Rol?.toLowerCase();
+      if (role !== "admin" && role !== "agente") {
+        setError("Tu cuenta no tiene permiso para acceder al panel.");
+        return;
+      }
+
+      onLogin({
+        id:        user.id,
+        role,
+        name:      user.Usuario,
+        initials:  getInitials(user.Usuario),
+        email:     user.Correo,
+        agentName: user.Usuario,
+      });
+    } catch (err) {
+      setError(err.message ?? "Error al iniciar sesión.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -25,8 +64,12 @@ export function LoginScreen({ onLogin }) {
           <div className="w-12 h-12 rounded-xl bg-[#16a34a] flex items-center justify-center mx-auto mb-4">
             <Ticket size={20} className="text-white" />
           </div>
-          <h1 className="text-lg font-bold text-[#1a1a1a] dark:text-white tracking-tight uppercase">Sistema Tickets</h1>
-          <p className="text-xs text-[#5a4a30] dark:text-[#888] mt-1">Ingresa tus credenciales para continuar</p>
+          <h1 className="text-lg font-bold text-[#1a1a1a] dark:text-white tracking-tight uppercase">
+            Sistema Tickets
+          </h1>
+          <p className="text-xs text-[#5a4a30] dark:text-[#888] mt-1">
+            Ingresa tus credenciales para continuar
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="px-8 py-6 flex flex-col gap-4">
@@ -39,7 +82,8 @@ export function LoginScreen({ onLogin }) {
               <input
                 type="email" value={email} onChange={e => setEmail(e.target.value)}
                 placeholder="correo@empresa.com" autoComplete="email"
-                className="w-full border border-[#a09070] dark:border-[#3a3a3a] rounded-lg pl-9 pr-3 py-2 text-sm text-[#1a1a1a] dark:text-[#e0d8cc] bg-[#d4c4a0] dark:bg-[#2a2a2a] outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a] placeholder:text-[#a09070] dark:placeholder:text-[#555]"
+                disabled={loading}
+                className="w-full border border-[#a09070] dark:border-[#3a3a3a] rounded-lg pl-9 pr-3 py-2 text-sm text-[#1a1a1a] dark:text-[#e0d8cc] bg-[#d4c4a0] dark:bg-[#2a2a2a] outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a] placeholder:text-[#a09070] dark:placeholder:text-[#555] disabled:opacity-60"
               />
             </div>
           </div>
@@ -53,7 +97,8 @@ export function LoginScreen({ onLogin }) {
               <input
                 type="password" value={password} onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••" autoComplete="current-password"
-                className="w-full border border-[#a09070] dark:border-[#3a3a3a] rounded-lg pl-9 pr-3 py-2 text-sm text-[#1a1a1a] dark:text-[#e0d8cc] bg-[#d4c4a0] dark:bg-[#2a2a2a] outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a] placeholder:text-[#a09070] dark:placeholder:text-[#555]"
+                disabled={loading}
+                className="w-full border border-[#a09070] dark:border-[#3a3a3a] rounded-lg pl-9 pr-3 py-2 text-sm text-[#1a1a1a] dark:text-[#e0d8cc] bg-[#d4c4a0] dark:bg-[#2a2a2a] outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a] placeholder:text-[#a09070] dark:placeholder:text-[#555] disabled:opacity-60"
               />
             </div>
           </div>
@@ -65,10 +110,13 @@ export function LoginScreen({ onLogin }) {
           )}
 
           <button
-            type="submit"
-            className="w-full py-2 bg-[#16a34a] text-white text-sm font-semibold rounded-lg hover:bg-[#15803d] transition-colors flex items-center justify-center gap-2 mt-1"
+            type="submit" disabled={loading}
+            className="w-full py-2 bg-[#16a34a] text-white text-sm font-semibold rounded-lg hover:bg-[#15803d] transition-colors flex items-center justify-center gap-2 mt-1 disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            <ShieldCheck size={15} /> Iniciar sesión
+            {loading
+              ? <><Loader2 size={15} className="animate-spin" /> Verificando…</>
+              : <><ShieldCheck size={15} /> Iniciar sesión</>
+            }
           </button>
         </form>
 

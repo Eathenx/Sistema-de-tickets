@@ -13,16 +13,28 @@ export function useTickets(agentName = null) {
     setLoading(true);
     setError(null);
     try {
-      const [{ data: ticketRows, error: tErr }, { data: incRows }, { data: usrRows }] =
-        await Promise.all([
-          supabase.from("Tickets").select("*").order("Fecha", { ascending: false }),
-          supabase.from("Incidentes").select("id, Categoria, Incidente, Tiempo"),
-          supabase.from("Usuarios").select("id, Usuario"),
-        ]);
+      const [
+        { data: ticketRows, error: tErr },
+        { data: incRows },
+        { data: usrRows },
+      ] = await Promise.all([
+        supabase.from("Tickets").select("*").order("Fecha", { ascending: false }),
+        supabase.from("Incidentes").select("id, Categoria, Incidente, Tiempo"),
+        supabase.from("Usuarios").select("id, Usuario, Rol"),
+      ]);
       if (tErr) throw tErr;
+
       const incMap = Object.fromEntries((incRows ?? []).map(i => [i.id, i]));
       const usrMap = Object.fromEntries((usrRows ?? []).map(u => [u.id, u]));
-      setTickets((ticketRows ?? []).map(row => mapDbTicket(row, incMap, usrMap)));
+
+      // agentMap from Usuarios with Rol='agente' — wraps in { Nombre } to keep mapDbTicket compatible
+      const agentMap = Object.fromEntries(
+        (usrRows ?? [])
+          .filter(u => u.Rol?.toLowerCase() === "agente")
+          .map(u => [u.id, { Nombre: u.Usuario }])
+      );
+
+      setTickets((ticketRows ?? []).map(row => mapDbTicket(row, incMap, usrMap, agentMap)));
     } catch (err) {
       setError(err.message ?? "Error al cargar datos");
     } finally {
@@ -39,9 +51,9 @@ export function useTickets(agentName = null) {
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(t =>
-        t.title.toLowerCase().includes(q)     ||
-        t.id.toLowerCase().includes(q)         ||
-        t.requester.toLowerCase().includes(q)  ||
+        t.title.toLowerCase().includes(q)    ||
+        t.id.toLowerCase().includes(q)        ||
+        t.requester.toLowerCase().includes(q) ||
         t.category.toLowerCase().includes(q)
       );
     }
@@ -55,8 +67,9 @@ export function useTickets(agentName = null) {
     setTickets(prev => prev.map(t => t.id === formattedId ? { ...t, ...changes } : t));
 
     const dbPayload = {};
-    if (changes.status !== undefined) dbPayload.Status = changes.status;
-    if (changes.agent  !== undefined) dbPayload.Agente = changes.agent;
+    if (changes.status     !== undefined) dbPayload.Status  = changes.status;
+    if (changes.agentRawId !== undefined) dbPayload.Agente  = changes.agentRawId;
+    if (changes.comment    !== undefined) dbPayload.comment = changes.comment;
     const { error: dbErr } = await supabase
       .from("Tickets")
       .update(dbPayload)

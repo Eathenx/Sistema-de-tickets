@@ -1,9 +1,13 @@
 import { useState } from "react";
-import { LayoutDashboard, Ticket, Users, BarChart3, Settings } from "lucide-react";
+import { LayoutDashboard, Ticket, Users, UserCog, BarChart3, Settings } from "lucide-react";
 import { AppLayout } from "../components/layout/AppLayout";
 import { TicketDetail } from "../components/tickets/TicketDetail";
 import { DashboardView } from "../views/DashboardView";
 import { TicketsView } from "../views/TicketsView";
+import { UsersView } from "../views/UsersView";
+import { AgentsView } from "../views/AgentsView";
+import { ReportsView } from "../views/ReportsView";
+import { ConfigView } from "../views/ConfigView";
 import { PlaceholderView } from "../views/PlaceholderView";
 import { useTickets } from "../hooks/useTickets";
 import { useAgents } from "../hooks/useAgents";
@@ -12,6 +16,7 @@ const ADMIN_NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard",     Icon: LayoutDashboard },
   { key: "tickets",   label: "Tickets",       Icon: Ticket, hasBadge: true },
   { key: "users",     label: "Usuarios",      Icon: Users },
+  { key: "agents",    label: "Agentes",       Icon: UserCog },
   { key: "reports",   label: "Reportes",      Icon: BarChart3 },
   { key: "config",    label: "Configuración", Icon: Settings },
 ];
@@ -45,16 +50,16 @@ export function AdminPanel({ user, onLogout, dark, onToggleDark }) {
           onOpenTicket={setSelectedId} loading={loading} error={error} onRetry={refresh} />
       )}
       {activeView === "users" && (
-        <PlaceholderView icon={Users} title="Vista de Usuarios"
-          subtitle="Conectar con tabla Usuarios de Supabase" />
+        <UsersView />
+      )}
+      {activeView === "agents" && (
+        <AgentsView agents={agents} tickets={tickets} />
       )}
       {activeView === "reports" && (
-        <PlaceholderView icon={BarChart3} title="Reportes"
-          subtitle="Integrar gráficas con datos de Supabase" />
+        <ReportsView tickets={tickets} />
       )}
       {activeView === "config" && (
-        <PlaceholderView icon={Settings} title="Configuración"
-          subtitle="SLAs, categorías, notificaciones, integraciones" />
+        <ConfigView />
       )}
       {selectedTicket && (
         <TicketDetail ticket={selectedTicket} agents={agents}

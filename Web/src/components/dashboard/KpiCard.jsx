@@ -13,7 +13,7 @@ export function KpiCard({ type, value }) {
   const TrendIcon = cfg.trendUp ? TrendingDown : TrendingUp;
   const trendColor = cfg.trendUp ? "text-[#22c55e]" : "text-red-400";
   return (
-    <div className="bg-[#c8b89a] dark:bg-[#1d1d1d] rounded-xl border border-[#b0a07a] dark:border-[#2a2a2a] p-4">
+    <div className="bg-[#c2c2c2] dark:bg-[#1d1d1d] rounded-xl border border-[#b0a07a] dark:border-[#2a2a2a] p-4">
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs text-[#5a4a30] dark:text-[#888]">{cfg.label}</span>
         <div className={`w-8 h-8 rounded-lg ${cfg.bg} flex items-center justify-center`}>

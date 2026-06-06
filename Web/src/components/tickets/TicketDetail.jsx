@@ -1,13 +1,65 @@
 import { useState } from "react";
-import { X, Save } from "lucide-react";
+import { X, Save, MessageSquare, Clock, CheckCircle2, Timer } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { PriorityBadge } from "./PriorityBadge";
-import { getInitials } from "../../utils/ticketUtils";
+import { formatDuration } from "../../utils/ticketUtils";
+
+function ElapsedBlock({ rawFecha, status }) {
+  const done    = status === "resolved" || status === "closed";
+  const elapsed = formatDuration(rawFecha);
+
+  // Color dinámico para tickets abiertos según antigüedad
+  let barColor = "bg-[#22c55e]";
+  let textColor = "text-[#22c55e]";
+  let label = "Tiempo de resolución";
+  let Icon  = CheckCircle2;
+
+  if (!done) {
+    label = "Tiempo abierto";
+    Icon  = Timer;
+    const hours = rawFecha ? (Date.now() - new Date(rawFecha)) / 3_600_000 : 0;
+    if (hours < 4)       { barColor = "bg-[#888]";      textColor = "text-[#888]"; }
+    else if (hours < 24) { barColor = "bg-[#b8910a]";   textColor = "text-[#b8910a]"; }
+    else if (hours < 72) { barColor = "bg-[#d06020]";   textColor = "text-[#d06020]"; }
+    else                 { barColor = "bg-red-400";      textColor = "text-red-400"; }
+  }
+
+  return (
+    <div className={`col-span-2 rounded-lg border px-3 py-2.5 flex items-center gap-3 ${
+      done
+        ? "border-[#16a34a]/40 bg-[#16a34a]/10"
+        : "border-[#b0a07a]/60 dark:border-[#3a3a3a] bg-[#b8a880]/30 dark:bg-[#252525]"
+    }`}>
+      <Icon size={16} className={`${textColor} flex-shrink-0`} />
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-bold text-[#5a4a30] dark:text-[#666] uppercase tracking-widest mb-0.5">
+          {label}
+        </p>
+        <p className={`text-lg font-semibold leading-none ${textColor}`}>{elapsed}</p>
+      </div>
+      {!done && rawFecha && (
+        <div className="text-right flex-shrink-0">
+          <p className="text-[10px] text-[#7a6a50] dark:text-[#555]">desde</p>
+          <p className="text-[11px] font-medium text-[#3a2a1a] dark:text-[#aaa]">
+            {new Date(rawFecha).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
+          </p>
+        </div>
+      )}
+      {done && rawFecha && (
+        <div className="flex items-center gap-1 text-[11px] text-[#22c55e] flex-shrink-0">
+          <Clock size={10} />
+          <span>{new Date(rawFecha).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function TicketDetail({ ticket, agents, onClose, onSave, isAgent = false }) {
   const [status,  setStatus]  = useState(ticket.status);
+  const [comment, setComment] = useState(ticket.comment ?? "");
   const [agentId, setAgentId] = useState(
-    agents.find(a => a.name === ticket.agent)?.id ?? ""
+    ticket.agentRawId != null ? String(ticket.agentRawId) : ""
   );
 
   if (!ticket) return null;
@@ -16,8 +68,10 @@ export function TicketDetail({ ticket, agents, onClose, onSave, isAgent = false 
     const agent = agents.find(a => a.id === agentId);
     onSave(ticket.id, {
       status,
+      comment,
       agent:         isAgent ? ticket.agent : (agent?.name ?? ticket.agent),
-      agentInitials: isAgent ? ticket.agentInitials : getInitials(agent?.name ?? ticket.agent),
+      agentInitials: isAgent ? ticket.agentInitials : (agent ? `${agent.name[0] ?? ""}` : ticket.agentInitials),
+      agentRawId:    isAgent ? ticket.agentRawId : (agentId ? parseInt(agentId) : null),
     });
     onClose();
   };
@@ -79,6 +133,9 @@ export function TicketDetail({ ticket, agents, onClose, onSave, isAgent = false 
                 <p className="text-sm text-[#1a1a1a] dark:text-[#e0d8cc]">{ticket.departamento}</p>
               </div>
             )}
+
+            {/* Bloque de tiempo — ocupa las 2 columnas */}
+            <ElapsedBlock rawFecha={ticket.rawFecha} status={ticket.status} />
           </div>
 
           <hr className="border-[#b0a07a] dark:border-[#2a2a2a]" />
@@ -111,7 +168,9 @@ export function TicketDetail({ ticket, agents, onClose, onSave, isAgent = false 
               >
                 <option value="">Sin asignar</option>
                 {agents.map(a => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
+                  <option key={a.id} value={a.id}>
+                    {a.name}{a.especialidad ? ` — ${a.especialidad}` : ""}
+                  </option>
                 ))}
               </select>
             </div>
@@ -123,6 +182,22 @@ export function TicketDetail({ ticket, agents, onClose, onSave, isAgent = false 
               <p className="text-sm text-[#1a1a1a] dark:text-[#e0d8cc]">{ticket.agent}</p>
             </div>
           )}
+
+          <hr className="border-[#b0a07a] dark:border-[#2a2a2a]" />
+
+          {/* Comentario — visible y editable para admin y agente */}
+          <div>
+            <label className="text-[10px] font-bold text-[#5a4a30] dark:text-[#666] uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
+              <MessageSquare size={11} /> Comentario
+            </label>
+            <textarea
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+              placeholder="Añade notas internas, pasos realizados o cualquier observación…"
+              rows={4}
+              className="w-full border border-[#a09070] dark:border-[#3a3a3a] rounded-lg px-3 py-2 text-sm text-[#1a1a1a] dark:text-[#e0d8cc] bg-[#d4c4a0] dark:bg-[#2a2a2a] outline-none focus:ring-2 focus:ring-[#16a34a]/30 focus:border-[#16a34a] resize-none placeholder:text-[#a09070] dark:placeholder:text-[#555] leading-relaxed"
+            />
+          </div>
         </div>
 
         {/* Footer */}

@@ -5,8 +5,9 @@ const VIEW_TITLES = {
   dashboard: "Dashboard",
   tickets:   "Gestión de Tickets",
   users:     "Usuarios",
+  agents:    "Agentes",
   reports:   "Reportes",
-  config:    "Configuración",
+  config:    "Configuración — Categorías e incidentes",
 };
 
 export function Topbar({ activeView, search, onSearch, dark, onToggleDark, user }) {
