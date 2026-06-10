@@ -88,7 +88,12 @@ export function TicketDetail({ ticket, agents, user, onClose, onSave, isAgent = 
 
     try {
       if (commentToSave) {
-          await addConversacion(commentToSave, user?.id);
+          const res = await addConversacion(commentToSave, user?.id);
+          if (res && !res.success) {
+            alert("No se pudo guardar el comentario: " + (res.error || "Error de base de datos"));
+            setIsSaving(false);
+            return;
+          }
       }
 
       onSave(ticket.id, {

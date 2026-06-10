@@ -57,10 +57,10 @@ export function useConversaciones(ticketId) {
       
       if (err) throw err;
       await loadConversaciones();
-      return true;
+      return { success: true };
     } catch (err) {
       console.error("Error al añadir conversación:", err);
-      return false;
+      return { success: false, error: err.message };
     }
   };
 
